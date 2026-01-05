@@ -4,26 +4,25 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import './App.css';
+import { useLocation } from 'react-router';
 
 // ⚠️ ЗАМЕНИТЕ НА ВАШ ТОКЕН!
 const MAPBOX_TOKEN = 'pk.eyJ1IjoicG90YyIsImEiOiJjbWpqamc5ZXgxbXR1M2ZxeGFoajMwZzdrIn0.IdS9kJBrzb6AEiiJC8AdXg';
 
 function App() {
+  const location = useLocation()
+  const user_id = location.search.slice(4);
+  console.log("USER ID: " + location.search.slice(4));
+
   const mapContainerRef = useRef();
   const mapRef = useRef(null);
   const drawRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnPolygons, setDrawnPolygons] = useState([]);
-  const [polygons, setPolygons] = useState([]);
-  const USERNAME = 'potc'
-  const DATASET_ID = 'cmjjkll9d24o31nmohylbw3a5'
-  const DATASET_TOKEN = 'sk.eyJ1IjoicG90YyIsImEiOiJjbWpqd2JlaDQyM2ZrM2RzNnUybnVqN29oIn0.d8kiV-866FKx9UMuXZTeiQ'
-  const mbxDataSetClient = require('@mapbox/mapbox-sdk/services/datasets'); // вот эти 
-  const datasetClient = mbxDataSetClient({ accessToken: DATASET_TOKEN }) 
   const [inpName, setInp] = useState('')
   const [inpArea, setArea] = useState('')
 
-
+  fetch('http://localhost:3200/1/2').then(response => console.log(response))
   useEffect(() => {
     
     // 2. Инициализируем карту (только если есть токен)
@@ -45,7 +44,7 @@ function App() {
     mapRef.current.on('load', () => {
       mapRef.current.addSource('states', {
         type: 'geojson',
-        data: 'http://localhost:3200/1/file.geojson'
+        data: 'http://localhost:3200/22/file.geojson'
       });
 
       mapRef.current.addLayer({
@@ -160,7 +159,7 @@ function App() {
       features.features[features.features.length - 1].properties = {"name": inpName, "area": inpArea}
       console.log(`Данные для экспорта ${JSON.stringify(features.features[features.features.length - 1])}`)
       console.log(features.features[features.features.length - 1])
-      fetch(`http://localhost:3200/1/create`,{
+      fetch(`http://localhost:3200/${user_id}/create`,{
         method: 'POST',
         headers: {
           'Content-Type': 'application/json;charset=utf-8'
