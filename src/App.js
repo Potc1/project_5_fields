@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
+import * as turf from '@turf/turf';
 import './App.css';
 import { useLocation } from 'react-router';
 
@@ -12,7 +13,10 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoicG90YyIsImEiOiJjbWpqamc5ZXgxbXR1M2ZxeGFoajMwZzd
 function App() {
   const location = useLocation()
   const user_id = location.search.slice(4);
-  console.log("USER ID: " + location.search.slice(4));
+  const params = new URLSearchParams(window.location.search);
+  const first_param = params.get('id')
+  const second_param = params.get('remote')
+  console.log(`params: ${first_param} and ${second_param}`);
 
   const mapContainerRef = useRef();
   const mapRef = useRef(null);
@@ -21,8 +25,10 @@ function App() {
   const [drawnPolygons, setDrawnPolygons] = useState([]);
   const [inpName, setInp] = useState('')
   const [inpArea, setArea] = useState('')
+  const [roundedArea, setRoundedArea] = useState();
 
-  fetch('http://localhost:3200/1/2').then(response => console.log(response))
+  const response = fetch('http://localhost:3200/1/2')
+
   useEffect(() => {
     
     // 2. Инициализируем карту (только если есть токен)
@@ -44,7 +50,7 @@ function App() {
     mapRef.current.on('load', () => {
       mapRef.current.addSource('states', {
         type: 'geojson',
-        data: 'http://localhost:3200/22/file.geojson'
+        data: `http://localhost:3200/${first_param}/${second_param}/file.geojson`
       });
 
       mapRef.current.addLayer({
@@ -60,7 +66,7 @@ function App() {
       mapRef.current.on('click', 'states-layer', (e) => {
         new mapboxgl.Popup()
           .setLngLat(e.lngLat)
-          .setHTML(e.features[0].properties.name)
+          .setHTML(`<b>name:<b/> ${e.features[0].properties.name}<br><b>area:<b/> ${e.features[0].properties.area}`)
           .addTo(mapRef.current);
       });
 
@@ -90,18 +96,29 @@ function App() {
     mapRef.current.addControl(drawRef.current);
     
     // Обработчики рисования
-    mapRef.current.on('draw.create', (e) => {
+    mapRef.current.on('draw.create', updateArea, (e) => {
       console.log('🟢 Полигон создан:', e.features);
       // Можно сразу сохранять в dataset
     });
     
-    mapRef.current.on('draw.delete', (e) => {
+    mapRef.current.on('draw.delete', updateArea, (e) => {
       console.log('🔴 Фигура удалена');
     });
+    mapRef.current.on('draw.update', updateArea);
 
-
-  
-  
+    function updateArea(e) {
+      const data = drawRef.current.getAll();
+      if (data.features.length > 0) {
+        const area = turf.area(data);
+        setRoundedArea(Math.round(area * 100) / 100);
+        data.features[0].properties = {"area": Math.round(area * 100) / 100}
+        console.log(data.features[0], Math.round(area * 100) / 100)
+      } else {
+        setRoundedArea();
+        if (e.type !== 'draw.delete') alert('Click the map to draw a polygon.');
+      }
+    }
+    
 
   return () => mapRef.current.remove();
     
@@ -156,10 +173,17 @@ function App() {
         type: 'FeatureCollection',
         features: features.features
       };
-      features.features[features.features.length - 1].properties = {"name": inpName, "area": inpArea}
+      const user_properities = features.features[features.features.length - 1].properties
+      console.log(`Данные при рисовании ${user_properities}`)
+      if (inpArea != ""){
+        features.features[features.features.length - 1].properties = {"name": inpName, "area": inpArea}
+      }
+      else {
+        features.features[features.features.length - 1].properties = {"name": inpName, "area": roundedArea} 
+      }
       console.log(`Данные для экспорта ${JSON.stringify(features.features[features.features.length - 1])}`)
       console.log(features.features[features.features.length - 1])
-      fetch(`http://localhost:3200/${user_id}/create`,{
+      fetch(`http://localhost:3200/${first_param}/${second_param}/create`,{
         method: 'POST',
         headers: {
           'Content-Type': 'application/json;charset=utf-8'
