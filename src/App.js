@@ -5,14 +5,14 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import * as turf from '@turf/turf';
 import './App.css';
-import { useLocation } from 'react-router';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import Button from 'react-bootstrap/Button';
+import Offcanvas from 'react-bootstrap/Offcanvas';
+import ReactJsonView from '@microlink/react-json-view'
 
-// ⚠️ ЗАМЕНИТЕ НА ВАШ ТОКЕН!
 const MAPBOX_TOKEN = 'pk.eyJ1IjoicG90YyIsImEiOiJjbWpqamc5ZXgxbXR1M2ZxeGFoajMwZzdrIn0.IdS9kJBrzb6AEiiJC8AdXg';
 
 function App() {
-  const location = useLocation()
-  const user_id = location.search.slice(4);
   const params = new URLSearchParams(window.location.search);
   const first_param = params.get('id')
   const second_param = params.get('remote')
@@ -26,8 +26,24 @@ function App() {
   const [inpName, setInp] = useState('')
   const [inpArea, setArea] = useState('')
   const [roundedArea, setRoundedArea] = useState();
+  const [promiseConfig, setPromiseConfig] = useState();
+  const [configBase, setBaseConfig] = useState();
+  const [show, setShow] = useState(false);
 
-  const response = fetch('http://localhost:3200/1/2')
+  const RequestOptions = {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json' },
+    };
+
+  useEffect(() => {
+      fetch(`http://localhost:3200/${first_param}/${second_param}/data`, RequestOptions)
+      .then(response => {
+        setPromiseConfig(response.json());
+      })
+      .then(data => {
+        console.log((data))
+      })
+  }, []);
 
   useEffect(() => {
     
@@ -162,6 +178,11 @@ function App() {
       });
       setDrawnPolygons([]);
       console.log('🧹 Все фигуры удалены');
+      promiseConfig.then(
+        data => {setBaseConfig(data)},
+        err => {console.log(err);}
+      )
+      console.log(configBase)
     }
   };
   
@@ -199,11 +220,16 @@ function App() {
     }
   };
 
+  const handleClose = () => setShow(false);
+  const handleShow = () => setShow(true);
+
   return (
     <div className="app-container">
       {/* Панель управления */}
       <div className="controls-panel">
-        <h3>Mapbox Drawing Tool</h3>
+        <h3><Button variant="primary" onClick={handleShow}>
+          Mapbox Drawing Tool
+          </Button></h3>
         
         <button 
           className={`control-btn ${isDrawing ? 'active' : ''}`}
@@ -239,6 +265,15 @@ function App() {
           <p>3. Для завершения: клик на первую точку или двойной клик</p>
         </div>
       </div>
+
+      <Offcanvas show={show} onHide={handleClose}>
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title>Offcanvas</Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          <ReactJsonView src={configBase} theme="monokai" />
+        </Offcanvas.Body>
+      </Offcanvas>
 
       {/* Контейнер карты */}
       <div 
