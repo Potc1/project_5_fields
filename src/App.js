@@ -9,8 +9,53 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import Button from 'react-bootstrap/Button';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import ReactJsonView from '@microlink/react-json-view'
+import ReactDOM from 'react-dom';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoicG90YyIsImEiOiJjbWpqamc5ZXgxbXR1M2ZxeGFoajMwZzdrIn0.IdS9kJBrzb6AEiiJC8AdXg';
+let season_data = '';
+
+async function MoveSidePanel(first_param, second_param){
+  season_data = await fetch(`http://localhost:3200/${first_param}/${second_param}/data`).then(res => res.json())
+  console.log('Another function')
+  console.log(season_data)
+  return (
+    Object.entries(season_data).map(([key, value]) => {
+      <input className='control-btn export-btn' onChange={(e)=>{}} placeholder={key}/>
+      if ('Proccessings' in value){
+        for(const k in value['Proccessings']){
+          console.log(value['Proccessings'][k])
+
+        }
+      }
+    })
+  )
+}
+
+function useScript(url) {
+  useEffect(() => {
+    const script = document.createElement('script');
+    //script.src = url;
+    //script.async = false;
+    script.textContent = `
+    function displayData(data, first_param, second_param){
+      console.log(data)
+      fetch('http://localhost:3200/' + first_param + '/' + second_param +'/delete' ,{
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json;charset=utf-8'
+        },
+        body: JSON.stringify({'id': data})
+      });
+    }
+    `
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+}
+
 
 function App() {
   const params = new URLSearchParams(window.location.search);
@@ -29,12 +74,14 @@ function App() {
   const [promiseConfig, setPromiseConfig] = useState();
   const [configBase, setBaseConfig] = useState();
   const [show, setShow] = useState(false);
+  const [deletedId, setDeletedId] = useState('')
 
   const RequestOptions = {
         method: 'GET',
         headers: {'Content-Type': 'application/json' },
     };
 
+  useScript(`C:/Users/Admin/ЧТО/ФМИАТ/3 курс/Проект5/mapbox-drawing-app/src/script.js`)
   useEffect(() => {
       fetch(`http://localhost:3200/${first_param}/${second_param}/data`, RequestOptions)
       .then(response => {
@@ -80,10 +127,14 @@ function App() {
       });
 
       mapRef.current.on('click', 'states-layer', (e) => {
+
         new mapboxgl.Popup()
           .setLngLat(e.lngLat)
-          .setHTML(`<b>name:<b/> ${e.features[0].properties.name}<br><b>area:<b/> ${e.features[0].properties.area}`)
+          .setHTML(`<b>name:</b> ${e.features[0].properties.name}<br>
+                    <b>area:</b> ${e.features[0].properties.area}
+                    <button class="control-btn stop-btn" onclick="displayData('${e.features[0].properties.id}', '${first_param}', '${second_param}')">Удалить</button>`)
           .addTo(mapRef.current);
+          console.log(e.features)
       });
 
       mapRef.current.on('mouseenter', 'states-layer', () => {
@@ -135,6 +186,7 @@ function App() {
       }
     }
     
+
 
   return () => mapRef.current.remove();
     
@@ -197,10 +249,10 @@ function App() {
       const user_properities = features.features[features.features.length - 1].properties
       console.log(`Данные при рисовании ${user_properities}`)
       if (inpArea != ""){
-        features.features[features.features.length - 1].properties = {"name": inpName, "area": inpArea}
+        features.features[features.features.length - 1].properties = {"name": inpName, "area": inpArea, "id": features.features[features.features.length - 1].id}
       }
       else {
-        features.features[features.features.length - 1].properties = {"name": inpName, "area": roundedArea} 
+        features.features[features.features.length - 1].properties = {"name": inpName, "area": roundedArea, "id": features.features[features.features.length - 1].id} 
       }
       console.log(`Данные для экспорта ${JSON.stringify(features.features[features.features.length - 1])}`)
       console.log(features.features[features.features.length - 1])
@@ -220,8 +272,8 @@ function App() {
     }
   };
 
-  const handleClose = () => setShow(false);
-  const handleShow = () => setShow(true);
+  const handleClose = () => {setShow(false); }
+  const handleShow = () => {setShow(true); MoveSidePanel(first_param, second_param)};
 
   return (
     <div className="app-container">
@@ -256,8 +308,8 @@ function App() {
         <button className="control-btn clear-btn" onClick={clearAllFeatures}>
           🧹 Очистить всё
         </button>
-        <input className='control-btn' onChange={(e)=>{setInp(e.target.value); }} placeholder='name'/>
-        <input className='control-btn' onChange={(e)=>{setArea(e.target.value); }} placeholder='area'/>
+        <input className='control-btn export-btn' onChange={(e)=>{setInp(e.target.value); }} placeholder='name'/>
+        <input className='control-btn export-btn' onChange={(e)=>{setArea(e.target.value); }} placeholder='area'/>
         <div className="info">
           <p><strong>Инструкция:</strong></p>
           <p>1. Нажмите "Начать рисовать"</p>
@@ -268,7 +320,7 @@ function App() {
 
       <Offcanvas show={show} onHide={handleClose}>
         <Offcanvas.Header closeButton>
-          <Offcanvas.Title>Offcanvas</Offcanvas.Title>
+          <Offcanvas.Title>Сезоны</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
           <ReactJsonView src={configBase} theme="monokai" />
